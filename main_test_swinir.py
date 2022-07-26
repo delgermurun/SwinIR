@@ -7,11 +7,13 @@ import os
 import torch
 import requests
 
-from models.network_swinir import SwinIR as net
-from utils import util_calculate_psnr_ssim as util
+from .models.network_swinir import SwinIR as net
+from .utils import util_calculate_psnr_ssim as util
 
+model = None
 
-def main():
+def main(args):
+    global model
     parser = argparse.ArgumentParser()
     parser.add_argument('--task', type=str, default='color_dn', help='classical_sr, lightweight_sr, real_sr, '
                                                                      'gray_dn, color_dn, jpeg_car')
@@ -28,22 +30,23 @@ def main():
     parser.add_argument('--folder_gt', type=str, default=None, help='input ground-truth test image folder')
     parser.add_argument('--tile', type=int, default=None, help='Tile size, None for no tile during testing (testing as a whole)')
     parser.add_argument('--tile_overlap', type=int, default=32, help='Overlapping of different tiles')
-    args = parser.parse_args()
+    args = parser.parse_args(args)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # set up model
-    if os.path.exists(args.model_path):
-        print(f'loading model from {args.model_path}')
-    else:
-        os.makedirs(os.path.dirname(args.model_path), exist_ok=True)
-        url = 'https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/{}'.format(os.path.basename(args.model_path))
-        r = requests.get(url, allow_redirects=True)
-        print(f'downloading model {args.model_path}')
-        open(args.model_path, 'wb').write(r.content)
+    if model is None:
+        # set up model
+        if os.path.exists(args.model_path):
+            print(f'loading model from {args.model_path}')
+        else:
+            os.makedirs(os.path.dirname(args.model_path), exist_ok=True)
+            url = 'https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/{}'.format(os.path.basename(args.model_path))
+            r = requests.get(url, allow_redirects=True)
+            print(f'downloading model {args.model_path}')
+            open(args.model_path, 'wb').write(r.content)
 
-    model = define_model(args)
-    model.eval()
-    model = model.to(device)
+        model = define_model(args)
+        model.eval()
+        model = model.to(device)
 
     # setup folder and path
     folder, save_dir, border, window_size = setup(args)
