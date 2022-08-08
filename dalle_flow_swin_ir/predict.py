@@ -9,7 +9,7 @@ import glob
 import torch
 from collections import OrderedDict
 import numpy as np
-from main_test_swinir import define_model, setup, get_image_pair
+from dalle_flow_swin_ir.main_test_swinir import define_model, setup, get_image_pair
 
 
 class Predictor(cog.Predictor):

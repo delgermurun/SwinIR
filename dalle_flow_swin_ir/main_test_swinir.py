@@ -7,8 +7,8 @@ import os
 import torch
 import requests
 
-from .models.network_swinir import SwinIR as net
-from .utils import util_calculate_psnr_ssim as util
+from dalle_flow_swin_ir.models.network_swinir import SwinIR as net
+from dalle_flow_swin_ir.utils import util_calculate_psnr_ssim as util
 
 model = None
 
@@ -30,6 +30,7 @@ def main(args):
     parser.add_argument('--folder_gt', type=str, default=None, help='input ground-truth test image folder')
     parser.add_argument('--tile', type=int, default=None, help='Tile size, None for no tile during testing (testing as a whole)')
     parser.add_argument('--tile_overlap', type=int, default=32, help='Overlapping of different tiles')
+    parser.add_argument('--save_dir', type=str, default=None, help='output image folder')
     args = parser.parse_args(args)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -212,7 +213,7 @@ def setup(args):
         border = 0
         window_size = 7
 
-    return folder, save_dir, border, window_size
+    return folder, args.save_dir or save_dir, border, window_size
 
 
 def get_image_pair(args, path):
