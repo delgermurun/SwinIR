@@ -10,44 +10,45 @@ import requests
 from dalle_flow_swin_ir.models.network_swinir import SwinIR as net
 from dalle_flow_swin_ir.utils import util_calculate_psnr_ssim as util
 
-model = None
+parser = argparse.ArgumentParser()
+parser.add_argument('--task', type=str, default='color_dn', help='classical_sr, lightweight_sr, real_sr, '
+                                                                    'gray_dn, color_dn, jpeg_car')
+parser.add_argument('--scale', type=int, default=1, help='scale factor: 1, 2, 3, 4, 8') # 1 for dn and jpeg car
+parser.add_argument('--noise', type=int, default=15, help='noise level: 15, 25, 50')
+parser.add_argument('--jpeg', type=int, default=40, help='scale factor: 10, 20, 30, 40')
+parser.add_argument('--training_patch_size', type=int, default=128, help='patch size used in training SwinIR. '
+                                    'Just used to differentiate two different settings in Table 2 of the paper. '
+                                    'Images are NOT tested patch by patch.')
+parser.add_argument('--large_model', action='store_true', help='use large model, only provided for real image sr')
+parser.add_argument('--model_path', type=str,
+                    default='model_zoo/swinir/001_classicalSR_DIV2K_s48w8_SwinIR-M_x2.pth')
+parser.add_argument('--folder_lq', type=str, default=None, help='input low-quality test image folder')
+parser.add_argument('--folder_gt', type=str, default=None, help='input ground-truth test image folder')
+parser.add_argument('--tile', type=int, default=None, help='Tile size, None for no tile during testing (testing as a whole)')
+parser.add_argument('--tile_overlap', type=int, default=32, help='Overlapping of different tiles')
+parser.add_argument('--save_dir', type=str, default=None, help='output image folder')
 
-def main(args):
-    global model
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--task', type=str, default='color_dn', help='classical_sr, lightweight_sr, real_sr, '
-                                                                     'gray_dn, color_dn, jpeg_car')
-    parser.add_argument('--scale', type=int, default=1, help='scale factor: 1, 2, 3, 4, 8') # 1 for dn and jpeg car
-    parser.add_argument('--noise', type=int, default=15, help='noise level: 15, 25, 50')
-    parser.add_argument('--jpeg', type=int, default=40, help='scale factor: 10, 20, 30, 40')
-    parser.add_argument('--training_patch_size', type=int, default=128, help='patch size used in training SwinIR. '
-                                       'Just used to differentiate two different settings in Table 2 of the paper. '
-                                       'Images are NOT tested patch by patch.')
-    parser.add_argument('--large_model', action='store_true', help='use large model, only provided for real image sr')
-    parser.add_argument('--model_path', type=str,
-                        default='model_zoo/swinir/001_classicalSR_DIV2K_s48w8_SwinIR-M_x2.pth')
-    parser.add_argument('--folder_lq', type=str, default=None, help='input low-quality test image folder')
-    parser.add_argument('--folder_gt', type=str, default=None, help='input ground-truth test image folder')
-    parser.add_argument('--tile', type=int, default=None, help='Tile size, None for no tile during testing (testing as a whole)')
-    parser.add_argument('--tile_overlap', type=int, default=32, help='Overlapping of different tiles')
-    parser.add_argument('--save_dir', type=str, default=None, help='output image folder')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+def get_model(args):
     args = parser.parse_args(args)
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    if model is None:
-        # set up model
-        if os.path.exists(args.model_path):
-            print(f'loading model from {args.model_path}')
-        else:
-            os.makedirs(os.path.dirname(args.model_path), exist_ok=True)
-            url = 'https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/{}'.format(os.path.basename(args.model_path))
-            r = requests.get(url, allow_redirects=True)
-            print(f'downloading model {args.model_path}')
-            open(args.model_path, 'wb').write(r.content)
+    if os.path.exists(args.model_path):
+        print(f'loading model from {args.model_path}')
+    else:
+        os.makedirs(os.path.dirname(args.model_path), exist_ok=True)
+        url = 'https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/{}'.format(os.path.basename(args.model_path))
+        r = requests.get(url, allow_redirects=True)
+        print(f'downloading model {args.model_path}')
+        open(args.model_path, 'wb').write(r.content)
 
-        model = define_model(args)
-        model.eval()
-        model = model.to(device)
+    model = define_model(args)
+    model.eval()
+    model = model.to(device)
+    return model
+
+def main(args, model):
+    args = parser.parse_args(args)
 
     # setup folder and path
     folder, save_dir, border, window_size = setup(args)
